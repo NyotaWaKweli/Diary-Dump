@@ -1,7 +1,6 @@
 // app/api/view/route.js
+import firebaseAdmin from 'firebase-admin';
 import { NextResponse } from 'next/server';
-import { initializeApp, getApps, cert } from 'firebase-admin/app';
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { createHash } from 'crypto';
 
 function getAdminDb() {
@@ -44,8 +43,8 @@ export async function POST(req) {
     // New viewer — increment
     const noteRef = db.collection('notes').doc(noteId);
     const batch   = db.batch();
-    batch.set(viewerRef, { viewedAt: FieldValue.serverTimestamp() });
-    batch.update(noteRef, { views: FieldValue.increment(1) });
+    batch.set(viewerRef, { viewedAt: firebaseAdmin.firestore.FieldValue.serverTimestamp() });
+    batch.update(noteRef, { views: firebaseAdmin.firestore.FieldValue.increment(1) });
     await batch.commit();
 
     const updated = await noteRef.get();
@@ -55,5 +54,4 @@ export async function POST(req) {
     console.error('[api/view]', err);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
-      }
-
+}
