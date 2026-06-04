@@ -1,10 +1,10 @@
+// app/page.jsx
 import dynamic from 'next/dynamic';
+import { getSession } from '../lib/auth';
 
-// Wall uses browser APIs (pointer events, sessionStorage, Firestore)
-// so we load it client-side only — no SSR
 const Wall = dynamic(() => import('../components/Wall'), { ssr: false });
 
-export default function Home() {
-  return <Wall />;
+export default async function Home() {
+  const currentUser = await getSession();
+  return <Wall currentUser={currentUser} />;
 }
-
