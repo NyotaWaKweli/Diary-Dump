@@ -1,3 +1,4 @@
+// components/WriteModal.jsx
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
@@ -144,4 +145,5 @@ export default function WriteModal({ open, pendingPos, onClose, onSuccess }) {
       </div>
     </div>
   );
-}
+          }
+          
