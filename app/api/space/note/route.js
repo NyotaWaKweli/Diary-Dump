@@ -1,8 +1,8 @@
 // app/api/space/note/route.js
+import firebaseAdmin from 'firebase-admin';
 import { NextResponse } from 'next/server';
 import { getAdminDb } from '../../../../lib/adminDb';
 import { getSession } from '../../../../lib/auth';
-import { FieldValue } from 'firebase-admin/firestore';
 
 export async function POST(req) {
   try {
@@ -37,7 +37,7 @@ export async function POST(req) {
       postedBy,
       reactions: {},
       views:     0,
-      createdAt: FieldValue.serverTimestamp(),
+      createdAt: firebaseAdmin.firestore.FieldValue.serverTimestamp(),
     });
 
     return NextResponse.json({ success: true });
@@ -47,4 +47,3 @@ export async function POST(req) {
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }
-
