@@ -1,25 +1,12 @@
 // components/MenuSidebar.jsx
 'use client';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { db } from '../lib/firebase';
-import { collection, getDocs, orderBy, query } from 'firebase/firestore';
 
 export default function MenuSidebar({ currentUser }) {
-  const [open,   setOpen]   = useState(false);
-  const [spaces, setSpaces] = useState([]);
+  const [open, setOpen] = useState(false);
   const router = useRouter();
-
-  useEffect(() => {
-    if (!open) return;
-    // Load all spaces once sidebar opens
-    getDocs(query(collection(db, 'spaces'), orderBy('createdAt', 'asc')))
-      .then((snap) => {
-        setSpaces(snap.docs.map((d) => d.id));
-      })
-      .catch(() => {});
-  }, [open]);
 
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -29,21 +16,12 @@ export default function MenuSidebar({ currentUser }) {
 
   return (
     <>
-      {/* Hamburger button — top left, always visible */}
-      <button
-        className="hamburger"
-        onClick={() => setOpen(true)}
-        aria-label="Open menu"
-      >
+      <button className="hamburger" onClick={() => setOpen(true)} aria-label="Open menu">
         <span /><span /><span />
       </button>
 
-      {/* Backdrop */}
-      {open && (
-        <div className="menu-backdrop" onClick={() => setOpen(false)} />
-      )}
+      {open && <div className="menu-backdrop" onClick={() => setOpen(false)} />}
 
-      {/* Sidebar */}
       <nav className={`menu-sidebar${open ? ' open' : ''}`}>
         <div className="menu-header">
           <span className="menu-title">MENU</span>
@@ -57,7 +35,7 @@ export default function MenuSidebar({ currentUser }) {
         </div>
 
         <ul className="menu-list">
-          {/* PINNED = public wall */}
+          {/* PINNED = public wall, always at top */}
           <li className="menu-item pinned">
             <Link href="/" onClick={() => setOpen(false)}>
               <span className="menu-dot" />
@@ -65,7 +43,7 @@ export default function MenuSidebar({ currentUser }) {
             </Link>
           </li>
 
-          {/* Logged-in user's own space first */}
+          {/* Only show the logged-in user's own space */}
           {currentUser && (
             <li className="menu-item own">
               <Link href={`/space/${currentUser}`} onClick={() => setOpen(false)}>
@@ -74,35 +52,12 @@ export default function MenuSidebar({ currentUser }) {
               </Link>
             </li>
           )}
-
-          {/* All other spaces */}
-          {spaces
-            .filter((s) => s !== currentUser)
-            .map((username) => (
-              <li key={username} className="menu-item">
-                <Link href={`/space/${username}`} onClick={() => setOpen(false)}>
-                  <span className="menu-dot" />
-                  {username}'s Space
-                </Link>
-              </li>
-            ))}
         </ul>
 
-        {spaces.length === 0 && (
-          <p className="menu-empty">
-            {'{ Space page created\npinned at top }'}
-          </p>
-        )}
-
-        {/* Settings pinned at bottom */}
         <div className="menu-bottom">
           {currentUser ? (
             <>
-              <Link
-                href="/settings"
-                className="menu-settings-btn"
-                onClick={() => setOpen(false)}
-              >
+              <Link href="/settings" className="menu-settings-btn" onClick={() => setOpen(false)}>
                 SETTINGS
               </Link>
               <button className="menu-logout-btn" onClick={handleLogout}>
@@ -110,11 +65,7 @@ export default function MenuSidebar({ currentUser }) {
               </button>
             </>
           ) : (
-            <Link
-              href="/create"
-              className="menu-settings-btn"
-              onClick={() => setOpen(false)}
-            >
+            <Link href="/create" className="menu-settings-btn" onClick={() => setOpen(false)}>
               LOG IN / SIGN UP
             </Link>
           )}
@@ -123,4 +74,3 @@ export default function MenuSidebar({ currentUser }) {
     </>
   );
 }
-            
