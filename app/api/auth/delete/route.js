@@ -1,9 +1,9 @@
 // app/api/auth/delete/route.js
+import firebaseAdmin from 'firebase-admin';
 import { NextResponse } from 'next/server';
-import bcrypt from 'bcryptjs';
+import * as bcrypt from 'bcryptjs';
 import { getAdminDb } from '../../../../lib/adminDb';
 import { getSession, clearCookieOptions } from '../../../../lib/auth';
-import { FieldValue } from 'firebase-admin/firestore';
 
 export async function POST(req) {
   try {
@@ -38,4 +38,3 @@ export async function POST(req) {
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }
-
