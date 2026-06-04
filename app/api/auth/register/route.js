@@ -1,9 +1,9 @@
 // app/api/auth/register/route.js
+import firebaseAdmin from 'firebase-admin';
 import { NextResponse } from 'next/server';
-import bcrypt from 'bcryptjs';
+import * as bcrypt from 'bcryptjs';
 import { getAdminDb } from '../../../../lib/adminDb';
 import { signToken, cookieOptions } from '../../../../lib/auth';
-import { FieldValue } from 'firebase-admin/firestore';
 
 const RESERVED = ['admin','settings','menu','create','login','api','pinned','public'];
 
@@ -40,8 +40,8 @@ export async function POST(req) {
     // Create user + space in a batch
     const spaceRef = db.collection('spaces').doc(username);
     const batch    = db.batch();
-    batch.set(userRef,  { password: hash, createdAt: FieldValue.serverTimestamp() });
-    batch.set(spaceRef, { owner: username, createdAt: FieldValue.serverTimestamp() });
+    batch.set(userRef,  { password: hash, createdAt: firebaseAdmin.firestore.FieldValue.serverTimestamp() });
+    batch.set(spaceRef, { owner: username, createdAt: firebaseAdmin.firestore.FieldValue.serverTimestamp() });
     await batch.commit();
 
     const token = await signToken(username);
@@ -53,4 +53,5 @@ export async function POST(req) {
     console.error('[register]', err);
     return NextResponse.json({ error: 'Server error. Please try again.' }, { status: 500 });
   }
-      }
+}
+  
