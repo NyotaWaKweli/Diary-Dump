@@ -1,3 +1,9 @@
+// next.config.js
 /** @type {import('next').NextConfig} */
-const nextConfig = {};
+const nextConfig = {
+  experimental: {
+    serverComponentsExternalPackages: ['firebase-admin', 'bcryptjs'],
+  },
+};
 module.exports = nextConfig;
+
