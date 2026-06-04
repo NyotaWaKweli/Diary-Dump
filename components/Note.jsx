@@ -71,3 +71,4 @@ export default function Note({ note, scale, onTap }) {
     </div>
   );
 }
+
