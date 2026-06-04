@@ -1,6 +1,7 @@
 // app/api/auth/login/route.js
+import firebaseAdmin from 'firebase-admin';
 import { NextResponse } from 'next/server';
-import bcrypt from 'bcryptjs';
+import * as bcrypt from 'bcryptjs';
 import { getAdminDb } from '../../../../lib/adminDb';
 import { signToken, cookieOptions } from '../../../../lib/auth';
 
@@ -34,4 +35,3 @@ export async function POST(req) {
     return NextResponse.json({ error: 'Server error. Please try again.' }, { status: 500 });
   }
 }
-
