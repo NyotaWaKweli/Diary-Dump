@@ -1,71 +1,52 @@
 // app/api/react/route.js
-import firebaseAdmin from 'firebase-admin';
 import { NextResponse } from 'next/server';
+import { createRequire } from 'module';
 import { createHash } from 'crypto';
+const require = createRequire(import.meta.url);
+const admin = require('firebase-admin');
 
-// ── Firebase Admin init (server-side, uses service account) ──────────────────
-// We re-use the same Firebase project but via Admin SDK so rules don't block us.
-// Set FIREBASE_SERVICE_ACCOUNT env var in Vercel as the full JSON string.
-function getAdminDb() {
-  if (!getApps().length) {
-    const sa = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-    initializeApp({ credential: cert(sa) });
+function getDb() {
+  if (!admin.apps.length) {
+    admin.initializeApp({ credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)) });
   }
-  return getFirestore();
+  return admin.firestore();
 }
 
-// Hash IP so we never store raw IPs — privacy-safe
+const REACTION_KEYS = {
+  '🕯️': 'candle', '🌹': 'rose', '💙': 'blue_heart',
+  '🤍': 'white_heart', '🕊️': 'dove',
+};
+
 function hashIp(ip) {
   return createHash('sha256').update(ip + 'diarydump_salt').digest('hex').slice(0, 32);
 }
-
 function getIp(req) {
-  // Vercel sets x-forwarded-for automatically
-  const forwarded = req.headers.get('x-forwarded-for');
-  return (forwarded ? forwarded.split(',')[0] : '0.0.0.0').trim();
+  const fwd = req.headers.get('x-forwarded-for');
+  return (fwd ? fwd.split(',')[0] : '0.0.0.0').trim();
 }
 
 export async function POST(req) {
   try {
     const { noteId, emoji } = await req.json();
-
-    if (!noteId || !emoji) {
-      return NextResponse.json({ error: 'Missing noteId or emoji' }, { status: 400 });
-    }
-
-    // Map emoji → safe Firestore key
-    const REACTION_KEYS = {
-      '🕯️': 'candle', '🌹': 'rose', '💙': 'blue_heart',
-      '🤍': 'white_heart', '🕊️': 'dove',
-    };
+    if (!noteId || !emoji) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
     const reactionKey = REACTION_KEYS[emoji];
-    if (!reactionKey) {
-      return NextResponse.json({ error: 'Invalid emoji' }, { status: 400 });
-    }
+    if (!reactionKey) return NextResponse.json({ error: 'Invalid emoji' }, { status: 400 });
 
-    const db      = getAdminDb();
-    const ipHash  = hashIp(getIp(req));
-    const reactorRef = db
-      .collection('notes').doc(noteId)
-      .collection('reactors').doc(`${ipHash}_${reactionKey}`);
-
-    // Check if already reacted
+    const db = getDb();
+    const ipHash = hashIp(getIp(req));
+    const reactorRef = db.collection('notes').doc(noteId).collection('reactors').doc(`${ipHash}_${reactionKey}`);
     const existing = await reactorRef.get();
-    if (existing.exists) {
-      return NextResponse.json({ alreadyReacted: true });
-    }
+    if (existing.exists) return NextResponse.json({ alreadyReacted: true });
 
-    // Write reactor record + increment count atomically
-    const noteRef = db.collection('notes').doc(noteId);
-    const batch   = db.batch();
-    batch.set(reactorRef, { reactedAt: firebaseAdmin.firestore.FieldValue.serverTimestamp() });
-    batch.update(noteRef, { [`reactions.${reactionKey}`]: firebaseAdmin.firestore.FieldValue.increment(1) });
+    const batch = db.batch();
+    batch.set(reactorRef, { reactedAt: admin.firestore.FieldValue.serverTimestamp() });
+    batch.update(db.collection('notes').doc(noteId), {
+      [`reactions.${reactionKey}`]: admin.firestore.FieldValue.increment(1)
+    });
     await batch.commit();
-
     return NextResponse.json({ success: true });
-
   } catch (err) {
-    console.error('[api/react]', err);
+    console.error('[react]', err);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }
