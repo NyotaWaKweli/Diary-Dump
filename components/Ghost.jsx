@@ -1,3 +1,4 @@
+// components/Ghost.jsx
 'use client';
 import { COLOR_MAP, COLOR_KEYS } from '../lib/constants';
 
