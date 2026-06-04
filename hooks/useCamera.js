@@ -1,3 +1,4 @@
+// hooks/useCamera.js
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { SCALE_MIN, SCALE_MAX, WALL_SIZE, DRAG_THRESHOLD } from '../lib/constants';
 
@@ -134,4 +135,4 @@ export function useCamera() {
 
   return { camera, initView, zoomAround, getViewportHandlers };
       }
-          
+        
