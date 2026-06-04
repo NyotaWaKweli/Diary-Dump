@@ -1,7 +1,6 @@
 // app/api/react/route.js
+import firebaseAdmin from 'firebase-admin';
 import { NextResponse } from 'next/server';
-import { initializeApp, getApps, cert } from 'firebase-admin/app';
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { createHash } from 'crypto';
 
 // ── Firebase Admin init (server-side, uses service account) ──────────────────
@@ -59,8 +58,8 @@ export async function POST(req) {
     // Write reactor record + increment count atomically
     const noteRef = db.collection('notes').doc(noteId);
     const batch   = db.batch();
-    batch.set(reactorRef, { reactedAt: FieldValue.serverTimestamp() });
-    batch.update(noteRef, { [`reactions.${reactionKey}`]: FieldValue.increment(1) });
+    batch.set(reactorRef, { reactedAt: firebaseAdmin.firestore.FieldValue.serverTimestamp() });
+    batch.update(noteRef, { [`reactions.${reactionKey}`]: firebaseAdmin.firestore.FieldValue.increment(1) });
     await batch.commit();
 
     return NextResponse.json({ success: true });
@@ -69,5 +68,4 @@ export async function POST(req) {
     console.error('[api/react]', err);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
-          }
-      
+}
