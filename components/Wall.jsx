@@ -1,3 +1,4 @@
+// components/Wall.jsx
 'use client';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { doc, updateDoc, increment, onSnapshot } from 'firebase/firestore';
@@ -12,8 +13,9 @@ import HUD          from './HUD';
 import WriteModal   from './WriteModal';
 import DetailModal  from './DetailModal';
 import Toast        from './Toast';
+import MenuSidebar  from './MenuSidebar';
 
-export default function Wall() {
+export default function Wall({ currentUser }) {
   const { notes, loading, error } = useNotes();
   const { camera, initView, zoomAround, getViewportHandlers } = useCamera();
   const { toasts, addToast } = useToast();
@@ -212,9 +214,10 @@ export default function Wall() {
         onClose={() => setDetailNote(null)}
       />
 
+      <MenuSidebar currentUser={currentUser} />
+
       {/* Toasts */}
       <Toast toasts={toasts} />
     </>
   );
 }
-        
