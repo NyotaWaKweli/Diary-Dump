@@ -19,20 +19,16 @@ function saveViewed(set) {
 }
 
 export default function DetailModal({ note, open, onClose }) {
-  const [reacted, setReacted] = useState({});   // emoji → bool (this session)
+  const [reacted,  setReacted]  = useState({});
   const [bouncing, setBouncing] = useState(null);
 
-  // Track view once per session per note
   useEffect(() => {
     if (!open || !note) return;
-
-    // Restore reacted state for this note
     const r = {};
     REACTIONS.forEach((emoji) => {
       r[emoji] = !!sessionStorage.getItem(`${REACT_KEY_PFX}${note.id}_${emoji}`);
     });
     setReacted(r);
-
     const viewed = getViewed();
     if (!viewed.has(note.id)) {
       viewed.add(note.id);
@@ -42,7 +38,7 @@ export default function DetailModal({ note, open, onClose }) {
   }, [open, note?.id]);
 
   async function handleReaction(emoji) {
-    if (reacted[emoji]) return;
+    if (!note || reacted[emoji]) return;
     const key = `${REACT_KEY_PFX}${note.id}_${emoji}`;
     sessionStorage.setItem(key, '1');
     setReacted((p) => ({ ...p, [emoji]: true }));
@@ -53,63 +49,64 @@ export default function DetailModal({ note, open, onClose }) {
         [`reactions.${emoji}`]: increment(1),
       });
     } catch {
-      // Rollback on failure
       sessionStorage.removeItem(key);
       setReacted((p) => ({ ...p, [emoji]: false }));
     }
   }
 
-  const bg      = noteColorBg(note);
-  const views   = note.views || 0;
-  const rotation = note.rotation ?? 0;
+  // All variable derivation is inside the guard — no null crash
+  const isOpen = open && !!note;
+  const bg       = isOpen ? noteColorBg(note) : '#F5F1E8';
+  const views    = isOpen ? (note.views || 0) : 0;
+  const rotation = isOpen ? (note.rotation ?? 0) : 0;
 
   return (
     <div
-      className={`overlay${open && note ? ' visible' : ' hidden'}`}
-      onPointerDown={(e) => { if (open && e.target === e.currentTarget) onClose(); }}
+      className={`overlay${isOpen ? ' visible' : ' hidden'}`}
+      onPointerDown={(e) => { if (isOpen && e.target === e.currentTarget) onClose(); }}
     >
-      {note && (
-      <div
-        className="detail-card"
-        style={{ background: bg, '--r': `${rotation}deg` }}
-        onPointerDown={(e) => e.stopPropagation()}
-      >
-        <button className="detail-close" onClick={onClose} aria-label="Close">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <path d="M18 6L6 18M6 6l12 12"/>
-          </svg>
-        </button>
+      {isOpen && (
+        <div
+          className="detail-card"
+          style={{ background: bg, '--r': `${rotation}deg` }}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <button className="detail-close" onClick={onClose} aria-label="Close">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+          </button>
 
-        <div className="detail-name">{note.name}</div>
-        <div className="detail-message">{note.message}</div>
-        {note.for && <div className="detail-for">For {note.for}</div>}
+          <div className="detail-name">{note.name}</div>
+          <div className="detail-message">{note.message}</div>
+          {note.for && <div className="detail-for">For {note.for}</div>}
 
-        <div className="detail-meta">
-          <span className="detail-date">{note.date}</span>
-          {views > 0 && (
-            <span className="detail-seen">👁 Seen by {views}</span>
-          )}
+          <div className="detail-meta">
+            <span className="detail-date">{note.date}</span>
+            {views > 0 && (
+              <span className="detail-seen">👁 Seen by {views}</span>
+            )}
+          </div>
+
+          <div className="reactions">
+            {REACTIONS.map((emoji) => {
+              const count = (note.reactions || {})[emoji] || 0;
+              return (
+                <button
+                  key={emoji}
+                  className={`reaction-btn${reacted[emoji] ? ' reacted' : ''}${bouncing === emoji ? ' reaction-bounce' : ''}`}
+                  onClick={() => handleReaction(emoji)}
+                  aria-label={`${emoji} reaction`}
+                >
+                  {emoji}
+                  {count > 0 && <span className="reaction-count">{count}</span>}
+                </button>
+              );
+            })}
+          </div>
         </div>
-
-        <div className="reactions">
-          {REACTIONS.map((emoji) => {
-            const count = (note.reactions || {})[emoji] || 0;
-            return (
-              <button
-                key={emoji}
-                className={`reaction-btn${reacted[emoji] ? ' reacted' : ''}${bouncing === emoji ? ' reaction-bounce' : ''}`}
-                onClick={() => handleReaction(emoji)}
-                aria-label={`${emoji} reaction`}
-              >
-                {emoji}
-                {count > 0 && <span className="reaction-count">{count}</span>}
-              </button>
-            );
-          })}
-        </div>
-      </div>
       )}
     </div>
   );
 }
-            
+                  
