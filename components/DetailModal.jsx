@@ -1,8 +1,7 @@
+// components/DetailModal.jsx
 'use client';
 import { useState, useEffect } from 'react';
-import { doc, updateDoc, increment } from 'firebase/firestore';
-import { db } from '../lib/firebase';
-import { COLOR_MAP, COLOR_KEYS, REACTIONS, VIEWED_KEY, REACT_KEY_PFX } from '../lib/constants';
+import { COLOR_MAP, COLOR_KEYS, REACTIONS, REACTION_KEYS, REACTION_EMOJIS } from '../lib/constants';
 
 function noteColorBg(note) {
   if (note?.colorKey && COLOR_MAP[note.colorKey]) return COLOR_MAP[note.colorKey].bg;
@@ -10,54 +9,84 @@ function noteColorBg(note) {
   return COLOR_MAP.cream.bg;
 }
 
-function getViewed() {
-  try { return new Set(JSON.parse(sessionStorage.getItem(VIEWED_KEY) || '[]')); }
-  catch { return new Set(); }
-}
-function saveViewed(set) {
-  try { sessionStorage.setItem(VIEWED_KEY, JSON.stringify([...set])); } catch {}
-}
-
 export default function DetailModal({ note, open, onClose }) {
-  const [reacted,  setReacted]  = useState({});
+  const [reacted,  setReacted]  = useState({});   // emoji → bool
   const [bouncing, setBouncing] = useState(null);
+  const [views,    setViews]    = useState(0);
+  const [reactions, setReactions] = useState({});  // reactionKey → count
 
+  const isOpen = open && !!note;
+
+  // On open: call /api/view (IP-deduped), seed reaction counts from note
   useEffect(() => {
-    if (!open || !note) return;
+    if (!isOpen) return;
+
+    // Seed counts from Firestore data immediately
+    setReactions(note.reactions || {});
+    setViews(note.views || 0);
+
+    // Restore which emojis this browser already reacted with
+    // (belt-and-suspenders on top of IP check)
     const r = {};
     REACTIONS.forEach((emoji) => {
-      r[emoji] = !!sessionStorage.getItem(`${REACT_KEY_PFX}${note.id}_${emoji}`);
+      const key = REACTION_KEYS[emoji];
+      r[emoji] = !!localStorage.getItem(`dd_reacted_${note.id}_${key}`);
     });
     setReacted(r);
-    const viewed = getViewed();
-    if (!viewed.has(note.id)) {
-      viewed.add(note.id);
-      saveViewed(viewed);
-      updateDoc(doc(db, 'notes', note.id), { views: increment(1) }).catch(() => {});
-    }
-  }, [open, note?.id]);
+
+    // Call view API — server handles IP dedup
+    fetch('/api/view', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ noteId: note.id }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (typeof data.views === 'number') setViews(data.views);
+      })
+      .catch(() => {}); // non-critical
+
+  }, [isOpen, note?.id]);
 
   async function handleReaction(emoji) {
     if (!note || reacted[emoji]) return;
-    const key = `${REACT_KEY_PFX}${note.id}_${emoji}`;
-    sessionStorage.setItem(key, '1');
+    const reactionKey = REACTION_KEYS[emoji];
+    if (!reactionKey) return;
+
+    // Optimistic update
     setReacted((p) => ({ ...p, [emoji]: true }));
+    setReactions((p) => ({ ...p, [reactionKey]: (p[reactionKey] || 0) + 1 }));
     setBouncing(emoji);
     setTimeout(() => setBouncing(null), 400);
+
     try {
-      await updateDoc(doc(db, 'notes', note.id), {
-        [`reactions.${emoji}`]: increment(1),
+      const res  = await fetch('/api/react', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ noteId: note.id, emoji }),
       });
+      const data = await res.json();
+
+      if (data.alreadyReacted) {
+        // Server says already reacted from this IP — rollback optimistic
+        setReacted((p) => ({ ...p, [emoji]: true })); // keep it marked
+        setReactions((p) => ({ ...p, [reactionKey]: Math.max(0, (p[reactionKey] || 1) - 1) }));
+        return;
+      }
+
+      if (!data.success) throw new Error(data.error);
+
+      // Persist locally so same browser doesn't re-react
+      localStorage.setItem(`dd_reacted_${note.id}_${reactionKey}`, '1');
+
     } catch {
-      sessionStorage.removeItem(key);
+      // Rollback on network error
       setReacted((p) => ({ ...p, [emoji]: false }));
+      setReactions((p) => ({ ...p, [reactionKey]: Math.max(0, (p[reactionKey] || 1) - 1) }));
     }
   }
 
-  // All variable derivation is inside the guard — no null crash
-  const isOpen = open && !!note;
   const bg       = isOpen ? noteColorBg(note) : '#F5F1E8';
-  const views    = isOpen ? (note.views || 0) : 0;
   const rotation = isOpen ? (note.rotation ?? 0) : 0;
 
   return (
@@ -90,16 +119,20 @@ export default function DetailModal({ note, open, onClose }) {
 
           <div className="reactions">
             {REACTIONS.map((emoji) => {
-              const count = (note.reactions || {})[emoji] || 0;
+              const key   = REACTION_KEYS[emoji];
+              const count = reactions[key] || 0;
               return (
                 <button
                   key={emoji}
                   className={`reaction-btn${reacted[emoji] ? ' reacted' : ''}${bouncing === emoji ? ' reaction-bounce' : ''}`}
                   onClick={() => handleReaction(emoji)}
                   aria-label={`${emoji} reaction`}
+                  title={reacted[emoji] ? 'Already reacted' : ''}
                 >
                   {emoji}
-                  {count > 0 && <span className="reaction-count">{count}</span>}
+                  {count > 0 && (
+                    <span className="reaction-count">{count}</span>
+                  )}
                 </button>
               );
             })}
@@ -109,4 +142,3 @@ export default function DetailModal({ note, open, onClose }) {
     </div>
   );
 }
-                  
