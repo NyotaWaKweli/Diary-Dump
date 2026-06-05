@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Next.js
+/.next/
+/out/
+
+# Production
+/build
+
+# Environment - NEVER COMMIT THESE
+.env
+.env.local
+.env.*.local
+
+# Misc
+.DS_Store
+*.pem
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+
+# Vercel
+.vercel
